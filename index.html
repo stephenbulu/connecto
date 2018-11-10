@@ -1,0 +1,157 @@
+
+<!DOCTYPE html>
+<html><head>
+  <meta charset="UTF-8">
+
+  <title>dumptris</title>
+  <meta name="keywords" content="box2d, html5, javascript, game, physics, engine, 2d, web, mobile">
+</head><body>
+  <div>
+    
+  </div>
+    <script src="https://d157l7jdn8e5sf.cloudfront.net/v4.8.2/pixi.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3.0-rc.1/dist/planck.min.js"></script>
+    <script src="./textures.js"></script>
+    <script>
+        var width = 800;
+        var height = 800;
+        var wallThickness = 25;
+        var leftMargin = 50;
+        var rightMargin = 50;
+        
+        function pixelsToMeters(x, y){
+            return planck.Vec2((x - leftMargin) / 80.0, (height-y) / 80.0)
+        }
+        function metersToPixels(x, y){
+            return [Math.round(x * 80.0 + (leftMargin)), height-y*80]
+        }
+        console.log(planck)
+
+
+
+
+        var app = new PIXI.Application(800, 800, { antialias: true });
+        document.body.appendChild(app.view);
+
+        var shadowLayer = new PIXI.Container();
+        app.stage.addChild(shadowLayer);
+        
+        var circlesLayer = new PIXI.Container();
+        app.stage.addChild(circlesLayer);
+
+
+        var uiLayer = new PIXI.Container();
+        app.stage.addChild(uiLayer);
+
+  
+        var graphics = new PIXI.Graphics();
+
+        // // set a fill and line style
+        graphics.beginFill(0x555555);
+        graphics.lineStyle(0);
+
+        // draw a shape
+        
+        graphics.moveTo(leftMargin, 0);
+        graphics.lineTo(leftMargin, height-wallThickness);
+        graphics.lineTo(width-rightMargin, height-wallThickness);
+        graphics.lineTo(width-rightMargin, 0);
+        graphics.lineTo(width-rightMargin+wallThickness, 0);
+        graphics.lineTo(width-rightMargin+wallThickness, height);
+        graphics.lineTo(leftMargin-wallThickness, height);
+
+        graphics.lineTo(leftMargin-wallThickness, 0);
+        graphics.lineTo(leftMargin, 0);
+        graphics.endFill();
+
+        uiLayer.addChild(graphics);
+        var circles = [];
+
+        var world = planck.World({
+            gravity: planck.Vec2(0, -10),
+            velocityIterations: 30,
+            positionIterations: 30
+        });
+
+        var ground = world.createBody({
+            type: 'static'
+        });
+        
+        ground.createFixture({
+            shape: planck.Edge(pixelsToMeters(leftMargin, height-wallThickness),pixelsToMeters(width-rightMargin, height-wallThickness))
+        });
+        ground.createFixture({
+            shape: planck.Edge(pixelsToMeters(leftMargin, height-wallThickness),pixelsToMeters(leftMargin, 0))
+        });
+        
+        ground.createFixture({
+            shape: planck.Edge(pixelsToMeters(width-rightMargin, height-wallThickness),pixelsToMeters(width-rightMargin, 0))
+        });
+
+        var blabla = 1
+        function addCircle(x, y, color, size){
+            //create circle sprite
+            var circle = new PIXI.Sprite(circleTextures[color][size]);
+            circle.anchor.set(0.5);
+            circle.x = x;
+            circle.y = y;
+            circlesLayer.addChild(circle);
+
+            //create shadow sprite
+            var shadow = new PIXI.Sprite(shadowTextures[color][size]);
+            shadow.anchor.set(0.5);
+            shadow.x = x;
+            shadow.y = y;
+            shadowLayer.addChild(shadow);
+
+            // add to global list of sprites
+            circles.push({'circle':circle, 'shadow':shadow});
+
+
+            body = world.createDynamicBody(pixelsToMeters(x, y));
+            body.createFixture({
+                shape: planck.Circle((size+1)/80.0),
+                density: blabla,
+                friction: 0.1,
+                restitution: 0
+            });
+            body.circleId = circles.length-1
+        }
+        
+        addCircle(width/2+100, 0, 'red', 25)
+        addCircle(width/2, 0, 'blue', 25)
+        
+
+        function mainLoop(){
+            world.step(1 / 60);
+            // iterate over bodies and fixtures
+            for (var body = world.getBodyList(); body; body = body.getNext()) {
+                for (var fixture = body.getFixtureList(); fixture; fixture = fixture.getNext()) {
+                    if(fixture.m_density <= 0){continue}
+                    _body = fixture.getBody()
+                    pxCircle = circles[_body.circleId]['circle']
+                    pxShadow = circles[_body.circleId]['shadow']
+                    _ = _body.getPosition()
+
+                    __ = metersToPixels(_['x'], _['y'])
+
+                    pxCircle.x = __[0], pxCircle.y = __[1];
+                    pxShadow.x = __[0], pxShadow.y = __[1];
+                    
+                }
+            }
+            window.requestAnimationFrame(mainLoop);
+        };
+
+        window.requestAnimationFrame(mainLoop);
+
+        world.on('remove-fixture', function(fixture) {
+        // remove fixture from ui
+        });
+        window.onclick = function(){
+            randInt = Math.floor(Math.random() * Math.floor(width-leftMargin-rightMargin-100));
+
+            addCircle(randInt+leftMargin+50, 0, ['blue', 'red', 'green', 'purple', 'yellow'][Math.floor(Math.random() * 5)], [25, 15, 50][Math.floor(Math.random() * 3)])
+        }
+    </script>
+</body></html>
