@@ -115,7 +115,7 @@
             shape: planck.Edge(pixelsToMeters(width-rightMargin, height-wallThickness),pixelsToMeters(width-rightMargin, 0))
         });
 
-        var blabla = 1
+        var blabla = .1
         function addCircle(x, y, color, size){
             //create circle sprite
             var circle = new PIXI.Sprite(circleTextures[color][size]);
@@ -236,78 +236,81 @@
             if(body_a.circleColor != body_b.circleColor){
                 return
             }
-            
+            if(body_a._edges.includes(body_b)){
+                return
+            }
 
+            start = body_a.groupSize <= body_b.groupSize ? body_a : body_b
+            other = body_a.groupSize <= body_b.groupSize ? body_b : body_a
 
-            if(! body_a._edges.includes(body_b)){
-                body_a._edges.push(body_b)
-                body_b._edges.push(body_a)
-                newGroupSize = body_a.groupSize + body_b.groupSize
-                start = body_a.groupSize > body_b.groupSize ? body_a : body_b
-                start.groupSize = newGroupSize
+            if(start == other){console.log("big problems")}
+
+            if(start.groupSize > 1){
+                console.log("running special code")
                 q = [start]
-                visited = [start]
-
-                if(newGroupSize <= 3 && body_a._edges.length <= 2 && body_b._edges.length <= 2){
-                    bodyAPos = body_a.getPosition()
-                    bodyBPos = body_b.getPosition()
-                    jointdef = planck.DistanceJoint(100, body_a, body_b, bodyAPos, bodyBPos)
-                    jointdef.setLength((body_a.circleSize + body_b.circleSize)/80);
-                    joints_to_make.push(jointdef)
-                }
-
+                visited = [start]     
                 while(q.length>0){
                     node = q.pop()
-                    if(newGroupSize >= 5){
-                        bodies_to_destroy.push(node)
-                        pxCircle = node._circle
-                        pxShadow = node._shadow
-                        circlesLayer.removeChild(pxCircle);
-                        shadowLayer[0].removeChild(pxShadow);
-                        shadowLayer[1].removeChild(pxShadow);
-                        shadowLayer[2].removeChild(pxShadow);
-                        shadowLayer[3].removeChild(pxShadow);
-                    }else{
-                        node.groupSize = newGroupSize
-                        node._shadow.texture = shadowTextures[node.circleColor][node.circleSize][Math.min(newGroupSize-1, 3)];
-                        node._shadow.setParent(shadowLayer[Math.min(newGroupSize-1, 3)])
+                    if(node == other){
+                        //Return if both the bodies are already in the same group
+                        return
                     }
                     for(i=0;i<node._edges.length;i++){
                         nNode = node._edges[i]
                         if(! visited.includes(nNode)){
                             q.push(nNode)
                             visited.push(nNode)
-                            nNode.groupSize = newGroupSize
                         }
                     }
                 }
-
-
             }
+            
 
-            // body_a._shadow.texture = shadowTextures[body_a.circleColor][body_a.circleSize][Math.min(body_a._edges.length, 3)];
-            // body_b._shadow.texture = shadowTextures[body_b.circleColor][body_b.circleSize][Math.min(body_b._edges.length, 3)];
-            // body_a._shadow.setParent(shadowLayer[Math.min(body_a.groupSize-1, 3)])
-            // body_b._shadow.setParent(shadowLayer[Math.min(body_b.groupSize-1, 3)])
-            // console.log(Math.min(body_a._edges.length, 3), Math.min(body_b._edges.length, 3))
+            
+            body_a._edges.push(body_b)
+            body_b._edges.push(body_a)                
+
+            
+
+            newGroupSize = body_a.groupSize + body_b.groupSize
+
+
+            if(newGroupSize <= 5 && body_a._edges.length <= 2 && body_b._edges.length <= 2){
+                bodyAPos = body_a.getPosition()
+                bodyBPos = body_b.getPosition()
+                jointdef = planck.DistanceJoint(100, body_a, body_b, bodyAPos, bodyBPos)
+                jointdef.setLength((body_a.circleSize + body_b.circleSize + 1 )/80);
+                joints_to_make.push(jointdef)
+            }
+            q = [body_a]
+            visited = [body_a]
+            while(q.length>0){
+                node = q.pop()
+                if(newGroupSize >= 6){
+                    bodies_to_destroy.push(node)
+                    pxCircle = node._circle
+                    pxShadow = node._shadow
+                    circlesLayer.removeChild(pxCircle);
+                    shadowLayer[0].removeChild(pxShadow);
+                    shadowLayer[1].removeChild(pxShadow);
+                    shadowLayer[2].removeChild(pxShadow);
+                    shadowLayer[3].removeChild(pxShadow);
+                }else{
+                    node.groupSize = newGroupSize
+                    node._shadow.texture = shadowTextures[node.circleColor][node.circleSize][Math.min(newGroupSize-1, 3)];
+                    node._shadow.setParent(shadowLayer[Math.min(newGroupSize-1, 3)])
+                }
+                for(i=0;i<node._edges.length;i++){
+                    nNode = node._edges[i]
+                    if(! visited.includes(nNode)){
+                        q.push(nNode)
+                        visited.push(nNode)
+                    };
+                };
+            };
         });
         world.on('end-contact', function(fixturePair) {
-            // body_a = fixturePair.getFixtureA().getBody()
-            // body_b = fixturePair.getFixtureB().getBody()
-            // if(body_a.m_type == "static" || body_b.m_type == "static"){
-            //     return
-            // }
-            // if(body_a.circleColor != body_b.circleColor){
-            //     return
-            // }
-            // if(body_a._edges.includes(body_b)){
-            //     var index = body_a._edges.indexOf(body_b)
-            //     //body_a._edges.splice(index, 1)
-            // }
-            // if(body_b._edges.includes(body_a)){
-            //     var index = body_b._edges.indexOf(body_a)
-            //     //body_b._edges.splice(index, 1)
-            // }
+
         });
         function bla(){
             randInt = Math.floor(Math.random() * Math.floor(width-leftMargin-rightMargin-100));
