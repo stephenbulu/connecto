@@ -10,11 +10,11 @@
     
   </div>
     <script src="https://d157l7jdn8e5sf.cloudfront.net/v4.8.2/pixi.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3.0-rc.1/dist/planck.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3.0-rc.1/dist/planck.js"></script>
     <script src="./textures.js"></script>
     <script>
         var width = 800;
-        var height = 800;
+        var height = 1000;
         var wallThickness = 25;
         var leftMargin = 50;
         var rightMargin = 50;
@@ -25,17 +25,32 @@
         function metersToPixels(x, y){
             return [Math.round(x * 80.0 + (leftMargin)), height-y*80]
         }
+        function dist(a, b){
+            return (Math.abs(a['x'] - b['x'])**2 + Math.abs(a['y'] - b['y'])**2)**.5
+        }
         console.log(planck)
 
 
 
 
-        var app = new PIXI.Application(800, 800, { antialias: true });
+        var app = new PIXI.Application(width, height, { antialias: true });
+
         document.body.appendChild(app.view);
 
-        var shadowLayer = new PIXI.Container();
-        app.stage.addChild(shadowLayer);
-        
+
+        //var voidFilter = new PIXI.filters.VoidFilter();
+        //voidFilter.alpha = 0.5;
+        var layerAlphas = [0.05, 0.16, 0.3, 0.5]
+        var shadowLayer = []
+        var alphaFilter = []
+        for(i=0;i<4;i++){
+            alphaFilter[i] = new PIXI.filters.AlphaFilter();
+            alphaFilter[i].alpha = layerAlphas[i];
+
+            shadowLayer[i] = new PIXI.Container();
+            shadowLayer[i].filters = [alphaFilter[i]];
+            app.stage.addChild(shadowLayer[i]);
+        }
         var circlesLayer = new PIXI.Container();
         app.stage.addChild(circlesLayer);
 
@@ -98,39 +113,84 @@
             circlesLayer.addChild(circle);
 
             //create shadow sprite
-            var shadow = new PIXI.Sprite(shadowTextures[color][size]);
+            var shadow = new PIXI.Sprite(shadowTextures[color][size][0]);
             shadow.anchor.set(0.5);
             shadow.x = x;
             shadow.y = y;
-            shadowLayer.addChild(shadow);
+            shadowLayer[0].addChild(shadow);
 
             // add to global list of sprites
-            circles.push({'circle':circle, 'shadow':shadow});
+            // circles.push({'circle':circle, 'shadow':shadow});
 
 
             body = world.createDynamicBody(pixelsToMeters(x, y));
             body.createFixture({
                 shape: planck.Circle((size+1)/80.0),
                 density: blabla,
-                friction: 0.1,
+                friction: 0,
                 restitution: 0
             });
-            body.circleId = circles.length-1
+            body._circle = circle
+            body._shadow = shadow
+            body.circleColor = color
+            body.circleSize = size
+            body._edges = []
         }
-        
-        addCircle(width/2+100, 0, 'red', 25)
-        addCircle(width/2, 0, 'blue', 25)
-        
+        // addCircle(width/2+100, 0, 'red', 25)
+        // addCircle(width/2, 0, 'blue', 25)
 
         function mainLoop(){
             world.step(1 / 60);
             // iterate over bodies and fixtures
+            while(joints_to_make.length > 0){
+                jointdef = joints_to_make.pop()
+                joint = world.createJoint(jointdef)
+            }
             for (var body = world.getBodyList(); body; body = body.getNext()) {
                 for (var fixture = body.getFixtureList(); fixture; fixture = fixture.getNext()) {
                     if(fixture.m_density <= 0){continue}
                     _body = fixture.getBody()
-                    pxCircle = circles[_body.circleId]['circle']
-                    pxShadow = circles[_body.circleId]['shadow']
+                    var destroyed = false;
+                    //console.log(_body.getContactList())
+                    for (var contact = _body.getContactList(); contact; contact = contact.next) {
+                        if(contact.other.m_type == "static"){continue}
+                        cbody = contact.other
+                        //console.log(_body.circleColor, cbody.circleColor)
+                        if (_body.circleColor == cbody.circleColor){
+                            
+                            // resize body
+                            // bla = _body.getFixtureList();
+                            // _shape = bla.shape
+                            // _body.destroyFixture(bla)
+                            // _body.createFixture({
+                            //     shape: planck.Circle((60)/80.0),
+                            //     density: blabla,
+                            //     friction: 0,
+                            //     restitution: 0
+                            // });
+
+
+                            // destroy both bodies render and physics
+                            // world.destroyBody(_body)
+                            // world.destroyBody(cbody)
+                            // pxCircle = circles[_body.circleId]['circle']
+                            // pxShadow = circles[_body.circleId]['shadow']
+                            // circlesLayer.removeChild(pxCircle);
+                            // shadowLayer.removeChild(pxShadow);
+                            // pxCircle = circles[cbody.circleId]['circle']
+                            // pxShadow = circles[cbody.circleId]['shadow']
+                            // circlesLayer.removeChild(pxCircle);
+                            // shadowLayer.removeChild(pxShadow);
+                            
+                            
+                            //destroyed = true;
+                            
+                            //break
+                        }
+                    }
+                    if(destroyed){continue}
+                    pxCircle = _body._circle//circles[_body.circleId]['circle']
+                    pxShadow = _body._shadow//circles[_body.circleId]['shadow']
                     _ = _body.getPosition()
 
                     __ = metersToPixels(_['x'], _['y'])
@@ -144,14 +204,68 @@
         };
 
         window.requestAnimationFrame(mainLoop);
+        console.log(planck)
+        joints_to_make = []
+        world.on('begin-contact', function(fixturePair) {
+            body_a = fixturePair.getFixtureA().getBody()
+            body_b = fixturePair.getFixtureB().getBody()
+            if(body_a.m_type == "static" || body_b.m_type == "static"){
+                return
+            }
+            if(body_a.circleColor != body_b.circleColor){
+                return
+            }
+            
 
-        world.on('remove-fixture', function(fixture) {
-        // remove fixture from ui
+
+            if(! body_a._edges.includes(body_b)){
+                body_a._edges.push(body_b)
+                if(body_a._edges.length <= 2 && body_b._edges.length <= 2){
+                    bodyAPos = body_a.getPosition()
+                    bodyBPos = body_b.getPosition()
+                    jointdef = planck.DistanceJoint(100, body_a, body_b, bodyAPos, bodyBPos)
+                    jointdef.setLength((body_a.circleSize + body_b.circleSize)/80);
+                    joints_to_make.push(jointdef)
+                }
+            }
+            if(! body_b._edges.includes(body_a)){
+                body_b._edges.push(body_a)
+            }
+            body_a._shadow.texture = shadowTextures[body_a.circleColor][body_a.circleSize][Math.min(body_a._edges.length, 3)];
+            body_b._shadow.texture = shadowTextures[body_b.circleColor][body_b.circleSize][Math.min(body_b._edges.length, 3)];
+            body_a._shadow.setParent(shadowLayer[Math.min(body_b._edges.length, 3)])
+            body_b._shadow.setParent(shadowLayer[Math.min(body_b._edges.length, 3)])
         });
+        world.on('end-contact', function(fixturePair) {
+            body_a = fixturePair.getFixtureA().getBody()
+            body_b = fixturePair.getFixtureB().getBody()
+            if(body_a.m_type == "static" || body_b.m_type == "static"){
+                return
+            }
+            if(body_a.circleColor != body_b.circleColor){
+                return
+            }
+            if(body_a._edges.includes(body_b)){
+                var index = body_a._edges.indexOf(body_b)
+                body_a._edges.splice(index, 1)
+            }
+            if(body_b._edges.includes(body_a)){
+                var index = body_b._edges.indexOf(body_a)
+                body_b._edges.splice(index, 1)
+            }
+        });
+        function bla(){
+            randInt = Math.floor(Math.random() * Math.floor(width-leftMargin-rightMargin-100));
+
+            addCircle(randInt+leftMargin+50, -100, ['blue', 'red', 'green', 'purple', 'yellow', 'orange'][Math.floor(Math.random() * 6)], [25, 15, 40][Math.floor(Math.random() * 3)])
+            window.setTimeout('bla()', 100)
+        }
+        //window.setTimeout('bla()', 200)
         window.onclick = function(){
             randInt = Math.floor(Math.random() * Math.floor(width-leftMargin-rightMargin-100));
 
-            addCircle(randInt+leftMargin+50, 0, ['blue', 'red', 'green', 'purple', 'yellow'][Math.floor(Math.random() * 5)], [25, 15, 50][Math.floor(Math.random() * 3)])
+            addCircle(randInt+leftMargin+50, -100, ['blue', 'red', 'green', 'purple', 'yellow', 'orange'][Math.floor(Math.random() * 6)], [25, 15, 40][Math.floor(Math.random() * 3)])
         }
+        
     </script>
 </body></html>
