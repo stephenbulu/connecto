@@ -1,11 +1,10 @@
-circleColors = {
-    "red": ["0xFF0000", "0xFF6060"],
-    "blue": ["0x2222FF", "0x8080FF"],
-    "purple": ["0xFF00FF", "0xFF00FF"],
-    "green": ["0x00FF00", "0x60FF60"],
-    "yellow": ["0xDDDD00", "0xFFFF00"],
-    'orange': ["0xFF6000", "0xFF6060"]
-}
+// Sounds
+var sounds = {}
+sounds['pop'] = new PIXI.sound.Sound.from('https://s3.amazonaws.com/myamazoncdnbucket/pop.wav');
+sounds['bounce'] = new PIXI.sound.Sound.from('https://s3.amazonaws.com/myamazoncdnbucket/bounce.mp3');
+sounds['bounce'].volume = .25
+sounds['pop'].volume = .1
+
 
 circleColors = {
     "red": ["0x741D11", "0xC3311D"],
@@ -13,12 +12,13 @@ circleColors = {
     "purple": ["0x4D2A86", "0x713DC3"],
     "green": ["0x17814D", "0x1FB46C"],
     "yellow": ["0x816C04", "0xC3A406"],
-    'orange': ["0x83400B", "0xc66011"]
+    'orange': ["0x83400B", "0xc66011"],
+    'gray': ["0x474747", "0x999999"]
 }
 
-circleSizes = [15, 25, 40]
+circleSizes = [15, 25, 40, 50]
 
-shadowAlphas = [0.06, 0.25, 0.35, 0.5]
+shadowAlphas = [0.06, 0.25, 0.35, 0.5, 0.5]
 
 
 shadowAlphas = [1, 1, 1, 1]
