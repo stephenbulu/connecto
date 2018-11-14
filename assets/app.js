@@ -12,14 +12,17 @@ function Board(){
     this.metersToPixels = function(x, y){
         return {x:Math.round(x * this.pixelToMeterRatio + (this.leftMargin)), y:this.height-y*this.pixelToMeterRatio}
     }
+    var a = this.leftMargin
+    var b = this.rightMargin
+    var c = this.wallThickness
     this.edges = [
-        [this.pixelsToMeters(this.leftMargin, this.height-this.wallThickness),this.pixelsToMeters(this.width-this.rightMargin, this.height-this.wallThickness)],
-        [this.pixelsToMeters(this.leftMargin, this.height-this.wallThickness),this.pixelsToMeters(this.leftMargin, 100)],
-        [this.pixelsToMeters(this.leftMargin, 100),this.pixelsToMeters(this.leftMargin-this.wallThickness, 100)],
-        [this.pixelsToMeters(this.leftMargin-this.wallThickness, this.height),this.pixelsToMeters(this.leftMargin-this.wallThickness, 100)],
-        [this.pixelsToMeters(this.width-this.rightMargin, this.height-this.wallThickness),this.pixelsToMeters(this.width-this.rightMargin, 100)],
-        [this.pixelsToMeters(this.width-this.rightMargin, 100),this.pixelsToMeters(this.width-this.rightMargin+this.wallThickness, 100)],
-        [this.pixelsToMeters(this.width-this.rightMargin+this.wallThickness, 100),this.pixelsToMeters(this.width-this.rightMargin+this.wallThickness, this.height)]
+        [this.pixelsToMeters(a, this.height-c),this.pixelsToMeters(this.width-b, this.height-c)],
+        [this.pixelsToMeters(a, this.height-c),this.pixelsToMeters(a, 100)],
+        [this.pixelsToMeters(a, 100),this.pixelsToMeters(a-c, 100)],
+        [this.pixelsToMeters(a-c, this.height),this.pixelsToMeters(a-c, 100)],
+        [this.pixelsToMeters(this.width-b, this.height-c),this.pixelsToMeters(this.width-b, 100)],
+        [this.pixelsToMeters(this.width-b, 100),this.pixelsToMeters(this.width-b+c, 100)],
+        [this.pixelsToMeters(this.width-b+c, 100),this.pixelsToMeters(this.width-b+c, this.height)]
     ]
 }
 board = new Board();
@@ -104,9 +107,10 @@ window.onmousedown = function(event){
 pixiApp.stage.on('mousemove', function(event){
     mousePos = event.data.getLocalPosition(pixiApp.stage)
 });
-
-function mainLoop(){      
-    world.step(1 / (60 * (pixiApp.ticker.FPS / 60)))
+count = 0
+function mainLoop(){
+    world.step(1 / (60 * (Math.max(pixiApp.ticker.FPS, 30) / 60)))
+    count++
     circleHandler.updateCircles(mousePos)
 };
 pixiApp.ticker.add(mainLoop);

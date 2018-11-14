@@ -20,13 +20,13 @@ function CircleHandler(world, pixiApp, board) {
     // Initialize all containers to control z index of shadows and circles
     this.layerAlphas = [.05, 0.3, 0.45, 0.65, 1]
     this.layerAlphas = [.05, 0.3, 0.4, 0.5, .6, .7, 1]
-    this.minGroupSize = 7
+    this.minGroupSize = 5
     this.shadowLayer = []
     this.jointsToMake = []
     this.sizes = [15, 25, 40, 50, 60]
     this.sizesToUse = [15, 25, 40, 50, 60, 40]
-    this.colors = textures.colorsList
-    this.colorsToUse = 10//max 11
+    this.colors = textures.colors
+    this.colorsToUse = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]//max 12+2
     for(i=0;i<this.layerAlphas.length;i++){
         var alphaFilter = new PIXI.filters.AlphaFilter();
         alphaFilter.alpha = this.layerAlphas[i];
@@ -39,7 +39,7 @@ function CircleHandler(world, pixiApp, board) {
 }
 CircleHandler.prototype.dropNextCircle = function(){
     if(this.lastDroppedTime + 210 > Date.now()) return;
-    
+    if(this.nextCircle === null) return;
     x = this.nextCircle.pixiCircle.x
     y = this.nextCircle.pixiCircle.y
     body = world.createDynamicBody(this.board.pixelsToMeters(x, y));
@@ -61,8 +61,7 @@ CircleHandler.prototype.dropNextCircle = function(){
 }
 CircleHandler.prototype.getNextCircle = function(){
     size = this.sizesToUse[Math.floor(Math.random() * this.sizesToUse.length)]        
-    color = this.colors[Math.floor(Math.random() * this.colorsToUse)]
-
+    color = this.colorsToUse[Math.floor(Math.random() * this.colorsToUse.length)]
     //create circle sprite
     var circle = new PIXI.Sprite(textures.getCircle(color,size));
     circle.anchor.set(0.5);

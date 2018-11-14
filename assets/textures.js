@@ -63,47 +63,66 @@ function getColorList(){
         return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
     }
 
-    var list = [
-    ['red', 7, 75], 
-    ['yellow', 55, 75], 
-    ['green', 135, 75], 
-    ['orange', 26, 80], 
-    ['blue', 210, 85], 
-    ['teal', 170, 70], 
-    ['purple', 263, 50], 
-    ['indigo', 250, 70], 
-    ['magenta', 330, 75]
-    ]
+    // var list = [
+    //     ['red', 7, 75], 
+    //     ['yellow', 55, 75], 
+    //     ['green', 135, 75], 
+    //     ['orange', 26, 80], 
+    //     ['blue', 210, 85], 
+    //     ['teal', 170, 70], 
+    //     ['purple', 263, 50], 
+    //     ['indigo', 250, 70], 
+    //     ['magenta', 330, 75]
+    // ]
 
-    var hueOffset = 0
-    var lightness1 = .50
-    var lightness2 = .26
-    var circleColors = {}
-    for (i=0;i<list.length;i++) {
-        name = list[i][0]
-        hue = list[i][1]
-        saturation = list[i][2]/100.0
-        first = fullColorHex(hslToRgb(hue/360, saturation, lightness1))
-        second = fullColorHex(hslToRgb(hue/360, saturation, lightness2))
-        circleColors[name] = [first, second]
+    // var hueOffset = 7
+    // var lightness1 = .50
+    // var lightness2 = .26
+    // var circleColors = {}
+    // for (i=0;i<list.length;i++) {
+    //     name = list[i][0]
+    //     hue = list[i][1]+hueOffset
+    //     saturation = list[i][2]/100.0
+    //     first = fullColorHex(hslToRgb(hue/360, saturation, lightness1))
+    //     second = fullColorHex(hslToRgb(hue/360, saturation, lightness2))
+    //     circleColors[name] = [first, second]
+    // }
+    // circleColors['gray'] = [fullColorHex(hslToRgb(0, 0, .27)), fullColorHex(hslToRgb(0, 0, .20))]
+    // circleColors['black'] = [fullColorHex(hslToRgb(0, 0, .08)), fullColorHex(hslToRgb(0, 0, .08))]
+    var circleColors = []
+
+    for(i=0;i<12;i++){
+        var lightness1 = .50
+        var lightness2 = .26
+        var saturation = .70
+        if (false && i%2 != 0){
+            saturation = .5
+            var lightness1 = .60
+            var lightness2 = .36
+        }
+        var hue = (360/12 * i) / 360
+        console.log(hue)
+        circleColors.push([fullColorHex(hslToRgb(hue, saturation, lightness1)), fullColorHex(hslToRgb(hue, saturation, lightness2))])
     }
-
-    circleColors['gray'] = [fullColorHex(hslToRgb(0, 0, .27)), fullColorHex(hslToRgb(0, 0, .20))]
-    circleColors['black'] = [fullColorHex(hslToRgb(0, 0, .08)), fullColorHex(hslToRgb(0, 0, .08))]
+    circleColors.push( [fullColorHex(hslToRgb(0, 0, .27)), fullColorHex(hslToRgb(0, 0, .20))] )
+    circleColors.push( [fullColorHex(hslToRgb(0, 0, .08)), fullColorHex(hslToRgb(0, 0, .08))] )
+    console.log(circleColors)
     return circleColors
+
 }
 
 function Textures(){
-    this.colorsList = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'indigo', 'purple', 'magenta', 'gray', 'black']
+    //this.colorsList = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'indigo', 'purple', 'magenta', 'gray', 'black']
     
     var circleColors = getColorList();
+    this.colors = circleColors.length
     var circleSizes = [15, 25, 40, 50, 60]
 
-    this.circleTextures = {}
-    this.shadowTextures = {}
+    this.circleTextures = []
+    this.shadowTextures = []
 
     //create textures for each color
-    this.addTexture = function(name, color, size, height){
+    this.addTexture = function(index, color, size, height){
         var graphics = new PIXI.Graphics();
         graphics.lineStyle(0);
         graphics.beginFill(color, 1);
@@ -114,26 +133,26 @@ function Textures(){
         graphics.drawCircle(0, 0, _size);
         graphics.endFill();
         if(height >= 0){
-            if (this.shadowTextures[name] === undefined) this.shadowTextures[name] = {};
-            if (this.shadowTextures[name][size] === undefined) this.shadowTextures[name][size] = {};
-            this.shadowTextures[name][size][height] = graphics.generateTexture()
+            if (this.shadowTextures[index] === undefined) this.shadowTextures[index] = {};
+            if (this.shadowTextures[index][size] === undefined) this.shadowTextures[index][size] = {};
+            this.shadowTextures[index][size][height] = graphics.generateTexture()
         }else{
-            if (this.circleTextures[name] === undefined) this.circleTextures[name] = {};
-            this.circleTextures[name][size] = graphics.generateTexture()
+            if (this.circleTextures[index] === undefined) this.circleTextures[index] = {};
+            this.circleTextures[index][size] = graphics.generateTexture()
         }
     }
     
-    for (var colorName in circleColors) {
-        if (!circleColors.hasOwnProperty(colorName)) continue;
-        for(i=0;i<circleSizes.length;i++){
+    for (var x=0;x< circleColors.length; x++) {
+        circleColor = circleColors[x]
+        for(var i=0;i<circleSizes.length;i++){
             size = circleSizes[i];
-            this.addTexture(colorName, circleColors[colorName][0], size, -1)
-            for(j=0;j<4;j++){
-                this.addTexture(colorName, circleColors[colorName][1], size, j)
+            this.addTexture(x, circleColor[0], size, -1)
+            for(var j=0;j<4;j++){
+                this.addTexture(x, circleColor[1], size, j)
             };
         };       
     }
-
+    console.log(circleColors)
     this.getCircle = function(color, size){
         try{
             if(this.circleTextures[color][size] === undefined){
