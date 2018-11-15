@@ -1,3 +1,5 @@
+var RAINBOW_MODE = 1
+var NORMAL_MODE = 0
 function CircleHandler(world, pixiApp, board) {
     this.Circle = function(color, size) {
         this.size = size;
@@ -7,9 +9,17 @@ function CircleHandler(world, pixiApp, board) {
         this.edges = []
         this.groupSize = 1
         this.physicsBody = null
-        this.destroying = false
+        this.destroying = false // a flag to let us know we need to destroy the circle next iteration
+        this.destroyAfter = 0
         this.body = null
+        this.hitBottom = false // a flag so we know that if destroyed it plays a different sound and has no points
+        this.outOfBounds = false
+        this.remake = false
     }
+    
+    
+    this.matchRange = 20
+    this.matchMode = RAINBOW_MODE
     this.lastDroppedTime = 0
     this.nextCircle = null
     this.world = world
@@ -17,6 +27,7 @@ function CircleHandler(world, pixiApp, board) {
     this.board = board;
     this.circles = [];
     this.vertices = [];
+
     // Initialize all containers to control z index of shadows and circles
     this.layerAlphas = [.05, 0.3, 0.45, 0.65, 1]
     this.layerAlphas = [.05, 0.3, 0.4, 0.5, .6, .7, 1]
@@ -24,9 +35,10 @@ function CircleHandler(world, pixiApp, board) {
     this.shadowLayer = []
     this.jointsToMake = []
     this.sizes = [15, 25, 40, 50, 60]
-    this.sizesToUse = [15, 25, 40, 50, 60, 40]
+    this.sizesToUse = [15, 25, 40, 50, 60]
     this.colors = textures.colors
-    this.colorsToUse = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]//max 12+2
+    //this.colorsToUse = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]//max 12+2
+    this.first = true
     for(i=0;i<this.layerAlphas.length;i++){
         var alphaFilter = new PIXI.filters.AlphaFilter();
         alphaFilter.alpha = this.layerAlphas[i];
@@ -34,23 +46,96 @@ function CircleHandler(world, pixiApp, board) {
         this.shadowLayer[i].filters = [alphaFilter];
         pixiApp.stage.addChild(this.shadowLayer[i]);
     }
+    
     this.circlesLayer = new PIXI.Container();
     pixiApp.stage.addChild(this.circlesLayer);
+}
+// Had to remake -- box2d was taking seconds to remove the joints for some reason
+CircleHandler.prototype.remakeCircle = function(circle) {
+    var _ = circle.physicsBody.getPosition()
+    oldVelocity = circle.physicsBody.getLinearVelocity();
+    oldVelocity.x = 0;
+    this.world.destroyBody(circle.physicsBody)
+
+    body = world.createDynamicBody(_);
+    body.setLinearVelocity(oldVelocity);
+    body.setLinearDamping(1)
+    body.setAngularDamping(1)
+    fixture = body.createFixture({
+        shape: planck.Circle((circle.size+1)/this.board.pixelToMeterRatio),
+        density: .01,
+        friction: 0,
+        restitution: 0,
+        filterGroupIndex: 0,
+        filterCategoryBits: this.board.collisions.CIRCLES_CATEGORY,
+        filterMaskBits: 0xFFFF ^ this.board.collisions.CIRCLES_CATEGORY //^ this.board.collisions.BOARD_CATEGORY
+    });
+    body.circle = circle
+    circle.physicsBody = body
+
+    this.disconnectCircle(circle)
+}
+
+CircleHandler.prototype.setGroupSize = function(circle){
+    var bfs = function(fn, obj){
+        var q = [circle]
+        var visited = [circle]
+        while(q.length>0){
+            var node = q.pop()
+            fn(node, obj)
+            for(var i=0;i<node.edges.length;i++){
+                var nNode = node.edges[i]
+                if(! visited.includes(nNode)){
+                    q.push(nNode)
+                    visited.push(nNode)
+                }
+            }
+        }       
+    }
+    var newGroupSize = 0
+    bfs(function(){newGroupSize++})
+    
+    bfs(function(node, obj){
+        node.groupSize = newGroupSize
+        var updatedTexture = textures.getShadow(node.color,node.size,Math.min(newGroupSize-1, 3));
+        if (node.pixiShadow.texture != updatedTexture){
+            node.pixiShadow.texture = textures.getShadow(node.color,node.size,Math.min(newGroupSize-1, 3));
+            node.pixiShadow.setParent(obj.shadowLayer[Math.min(newGroupSize-1, obj.layerAlphas.length-1)]);
+        }
+        if(newGroupSize >= obj.minGroupSize){
+            node.destroying = true
+            node.destroyAfter = Date.now() + 500
+        }
+    }, this)
+}
+CircleHandler.prototype.hitSideWall = function(circle){
+    circle.outOfBounds = true;
+    circle.remake = true;
+    
+}
+CircleHandler.prototype.circleWentOut = function(circle){
+    circle.hitBottom = true;
+    circle.destroying = true;
+    circle.destroyAfter = 0;
+
 }
 CircleHandler.prototype.dropNextCircle = function(){
     if(this.lastDroppedTime + 210 > Date.now()) return;
     if(this.nextCircle === null) return;
-    x = this.nextCircle.pixiCircle.x
-    y = this.nextCircle.pixiCircle.y
+    var x = this.nextCircle.pixiCircle.x;
+    var y = this.nextCircle.pixiCircle.y;
     body = world.createDynamicBody(this.board.pixelsToMeters(x, y));
-    body.setLinearVelocity(planck.Vec2(0, -20));
+    body.setLinearVelocity(planck.Vec2(0, -15));
     body.setLinearDamping(1)
     body.setAngularDamping(1)
-    body.createFixture({
+    fixture = body.createFixture({
         shape: planck.Circle((size+1)/this.board.pixelToMeterRatio),
         density: .01,
         friction: 0,
-        restitution: 0
+        restitution: 0,
+        filterGroupIndex: 0,
+        filterCategoryBits: this.board.collisions.CIRCLES_CATEGORY,
+        filterMaskBits: 0xFFFF// ^ this.board.collisions.CIRCLES_CATEGORY
     });
     this.nextCircle.physicsBody = body
     body.circle = this.nextCircle
@@ -61,7 +146,8 @@ CircleHandler.prototype.dropNextCircle = function(){
 }
 CircleHandler.prototype.getNextCircle = function(){
     size = this.sizesToUse[Math.floor(Math.random() * this.sizesToUse.length)]        
-    color = this.colorsToUse[Math.floor(Math.random() * this.colorsToUse.length)]
+    //color = this.colorsToUse[Math.floor(Math.random() * this.colorsToUse.length)]
+    color = Math.floor(Math.random() * 360)
     //create circle sprite
     var circle = new PIXI.Sprite(textures.getCircle(color,size));
     circle.anchor.set(0.5);
@@ -82,24 +168,52 @@ CircleHandler.prototype.setMinGroupSize = function(size){
     lastGroupSize = this.minGroupSize
     this.minGroupSize = size
 }
-CircleHandler.prototype.destroyCircle = function(circle) {
-    circle.pixiCircle.parent.removeChild(circle.pixiCircle)
-    circle.pixiShadow.parent.removeChild(circle.pixiShadow)
-    this.world.destroyBody(circle.physicsBody)
-    sounds.play('pop');
+CircleHandler.prototype.disconnectCircle = function(circle) {
+    for(var i=0;i<circle.edges.length;i++){
+        node = circle.edges[i]
+        index = node.edges.indexOf(circle)
+        if(index < 0){
+            console.log("This shouldn't happen.---")
+        } else {
+            node.edges.splice(index, 1)
+            this.setGroupSize(node);
+        }
+    }
+    circle.edges = [];
+    this.setGroupSize(circle);
 
+}
+CircleHandler.prototype.destroyCircle = function(circle) {
+    this.disconnectCircle(circle);
+    circle.pixiCircle.parent.removeChild(circle.pixiCircle);
+    circle.pixiShadow.parent.removeChild(circle.pixiShadow);
+    this.world.destroyBody(circle.physicsBody);
 }
 CircleHandler.prototype.updateCircles = function(mousePos){
     while(this.jointsToMake.length > 0){
         jointdef = this.jointsToMake.pop()
-        joint = world.createJoint(jointdef)
+        if (! jointdef.getBodyA().circle.outOfBounds && ! jointdef.getBodyB().circle.outOfBounds){
+            joint = world.createJoint(jointdef)
+        }
+    }
+    for (i=0;i<this.circles.length;i++) {
+        circle = this.circles[i]
+        if (circle.remake){
+            circle.remake = false;
+            this.remakeCircle(circle);
+        }
     }
     i=0
     while(i < this.circles.length){
         circle = this.circles[i]
-
         if(circle.destroying && circle.destroyAfter <= Date.now()){
+            circle.destroying = false
             this.destroyCircle(circle)
+            if (circle.hitBottom){
+                //console.log("play bad sounds")
+            } else {
+                sounds.play('pop');
+            }
             this.circles.splice(i, 1);
             i--
         }
@@ -137,9 +251,20 @@ CircleHandler.prototype.updateCircles = function(mousePos){
 CircleHandler.prototype.collide = function(bodyA, bodyB){
     circleA = bodyA.circle
     circleB = bodyB.circle
+    if (circleA.outOfBounds || circleB.outOfBounds) return;
 
-    
-    if (circleA.color != circleB.color) return;
+    if(this.matchMode == RAINBOW_MODE){
+        a = circleA.color
+        b = circleB.color
+        c = Math.min(a, b) + 360
+        d = Math.max(a, b)
+        if ( ! (Math.abs(a - b) <= this.matchRange || Math.abs(c - d) <= this.matchRange)){
+            return;
+        }
+
+    }else{
+        if (circleA.color != circleB.color) return;
+    }
     if (circleA.edges.includes(circleB)) return;
 
     // Get the smallest group
@@ -167,7 +292,7 @@ CircleHandler.prototype.collide = function(bodyA, bodyB){
     sounds.play('waterdrop');
     circleA.edges.push(circleB)
     circleB.edges.push(circleA)                
-    newGroupSize = circleA.groupSize + circleB.groupSize
+    var newGroupSize = circleA.groupSize + circleB.groupSize
     //minimum group size decides if we will remove this group from the board
     bodyAPos = bodyA.getPosition()
     bodyBPos = bodyB.getPosition()
@@ -177,25 +302,7 @@ CircleHandler.prototype.collide = function(bodyA, bodyB){
     jointdef = planck.DistanceJoint(100, bodyA, bodyB, bodyAPos, bodyBPos)
     jointdef.setLength((circleA.size + circleB.size +1 )/this.board.pixelToMeterRatio);
     this.jointsToMake.push(jointdef)
-    // init queue for BFS
-    q = [circleA]
-    visited = [circleA]
-    // Loop through all connected circles and set a new group size
-    while(q.length>0){
-        node = q.pop()
-        node.groupSize = newGroupSize
-        node.pixiShadow.texture = textures.getShadow(node.color,node.size,Math.min(newGroupSize-1, 3));
-        node.pixiShadow.setParent(this.shadowLayer[Math.min(newGroupSize-1, this.layerAlphas.length-1)])
-        if(newGroupSize >= this.minGroupSize){
-            node.destroying = true
-            node.destroyAfter = Date.now() + 500
-        }
-        for(i=0;i<node.edges.length;i++){
-            nNode = node.edges[i]
-            if(!visited.includes(nNode)){
-                q.push(nNode)
-                visited.push(nNode)
-            };
-        };
-    };
+    
+    this.setGroupSize(circleA);
+
 }

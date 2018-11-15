@@ -1,5 +1,6 @@
 // Sounds
 function Sound(){
+    this.lastTime = {'pop':0,'bounce':0,'waterdrop':0,'frog':0}
     this.sounds = {}
     this.sounds['pop'] = new PIXI.sound.Sound.from('https://s3.amazonaws.com/myamazoncdnbucket/pop.wav');
     this.sounds['bounce'] = new PIXI.sound.Sound.from('https://s3.amazonaws.com/myamazoncdnbucket/bounce.mp3');
@@ -10,7 +11,11 @@ function Sound(){
     this.sounds['frog'].volume = .15
     this.sounds['waterdrop'].volume = .8
     this.play = function(sound){
+        if(Date.now - this.lastTime[sound] < 100){
+            return;
+        }
         this.sounds[sound].play()
+        this.lastTime[sound] = Date.now()
     }
 }
 
@@ -91,22 +96,20 @@ function getColorList(){
     // circleColors['black'] = [fullColorHex(hslToRgb(0, 0, .08)), fullColorHex(hslToRgb(0, 0, .08))]
     var circleColors = []
 
-    for(i=0;i<12;i++){
-        var lightness1 = .50
-        var lightness2 = .26
-        var saturation = .70
+    for(i=0;i<360;i++){
+        var lightness1 = .30//.50
+        var lightness2 = .20//.26
+        var saturation = 1//.70
         if (false && i%2 != 0){
-            saturation = .5
+            var saturation = .5
             var lightness1 = .60
             var lightness2 = .36
         }
-        var hue = (360/12 * i) / 360
-        console.log(hue)
+        var hue = (360/360 * i) / 360
         circleColors.push([fullColorHex(hslToRgb(hue, saturation, lightness1)), fullColorHex(hslToRgb(hue, saturation, lightness2))])
     }
     circleColors.push( [fullColorHex(hslToRgb(0, 0, .27)), fullColorHex(hslToRgb(0, 0, .20))] )
     circleColors.push( [fullColorHex(hslToRgb(0, 0, .08)), fullColorHex(hslToRgb(0, 0, .08))] )
-    console.log(circleColors)
     return circleColors
 
 }
@@ -117,7 +120,6 @@ function Textures(){
     var circleColors = getColorList();
     this.colors = circleColors.length
     var circleSizes = [15, 25, 40, 50, 60]
-
     this.circleTextures = []
     this.shadowTextures = []
 
@@ -152,7 +154,6 @@ function Textures(){
             };
         };       
     }
-    console.log(circleColors)
     this.getCircle = function(color, size){
         try{
             if(this.circleTextures[color][size] === undefined){
