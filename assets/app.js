@@ -1,12 +1,12 @@
      
 function Board(){
-    this.width = 1800
+    this.width = 1300
     this.height = 1200
     this.wallThickness = 25
     this.leftMargin = 200
-    this.rightMargin = 700
+    this.rightMargin = 200
     this.pixelToMeterRatio = 50.0
-    this.topMargin = 600
+    this.topMargin = 500
     this.pixelsToMeters = function(x, y){
         return planck.Vec2((x - this.leftMargin) / this.pixelToMeterRatio, (this.height-y) / this.pixelToMeterRatio)
     }
@@ -78,6 +78,11 @@ board = new Board();
 //Initialize Pixi renderer
 var pixiApp = new PIXI.Application(board.width, board.height, { antialias: true });
 document.body.appendChild(pixiApp.view);
+console.log(pixiApp.renderer.plugins.interaction)
+
+dropZoneLayer = new PIXI.Container();
+pixiApp.stage.addChild(dropZoneLayer);
+
 
 //Initialize planck world
 var world = planck.World({
@@ -89,6 +94,10 @@ var world = planck.World({
 var sounds = new Sound()
 var textures = new Textures()
 
+
+pixiApp.renderer.plugins.interaction.cursorStyles.default = "url(https://s3.amazonaws.com/myamazoncdnbucket/cursor2.png) 16 0, auto";
+
+
 //Initialize circlehandler 
 var circleHandler = new CircleHandler(world, pixiApp, board);
 
@@ -99,10 +108,11 @@ pixiApp.stage.addChild(uiLayer);
 // Draw the board 
 var graphics = new PIXI.Graphics();
 
-// // set a fill and line style
+// set a fill and line style
 graphics.beginFill(0x555555);
 graphics.lineStyle(0);
-// draw a shape
+
+// Draw board shape
 graphics.moveTo(board.leftMargin, board.topMargin);
 graphics.lineTo(board.leftMargin, board.height-board.wallThickness);
 graphics.lineTo(board.width-board.rightMargin, board.height-board.wallThickness);
@@ -145,14 +155,7 @@ world.on('pre-solve', function(contact) {
 });
 
 
-var mousePos = {x:board.width/2, y:0};
-
-
-function addRandCircle(){
-    circleHandler.dropNextCircle();
-}
-
-pixiApp.stage.interactive = true
+var mousePos = planck.Vec2(board.width/2, 0);
 
 var mDown = false
 var lastAutoDrop = 0
@@ -166,6 +169,8 @@ window.onmouseup = function(event){
     lastAutoDrop = 0
 };
 
+// Set stage to interactive so we can get mouse events
+pixiApp.stage.interactive = true
 pixiApp.stage.on('mousemove', function(event){
     mousePos = event.data.getLocalPosition(pixiApp.stage)
 });

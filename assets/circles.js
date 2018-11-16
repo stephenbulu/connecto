@@ -1,5 +1,5 @@
-var RAINBOW_MODE = 1
-var NORMAL_MODE = 0
+var RAINBOW = 1
+var NORMAL = 0
 function CircleHandler(world, pixiApp, board) {
     this.Circle = function(color, size) {
         this.size = size;
@@ -14,31 +14,29 @@ function CircleHandler(world, pixiApp, board) {
         this.body = null
         this.hitBottom = false // a flag so we know that if destroyed it plays a different sound and has no points
         this.outOfBounds = false
-        this.remake = false
+        this.remakePhysics = false
+        this.highlight = false // render a highlight on the circle
     }
-    
-    
-    this.matchRange = 20
-    this.matchMode = RAINBOW_MODE
-    this.lastDroppedTime = 0
-    this.nextCircle = null
+    this.matchRange = 20 // for rainbow mode
+    this.matchMode = NORMAL
+    this.lastDroppedTime = 0 // Time the last circle was dropped
+    this.nextCircle = null // circle obj for the next circle to be dropped
     this.world = world
     this.pixiApp = pixiApp
     this.board = board;
-    this.circles = [];
-    this.vertices = [];
+    this.circles = []; // list of circle objects
 
     // Initialize all containers to control z index of shadows and circles
     this.layerAlphas = [.05, 0.3, 0.45, 0.65, 1]
     this.layerAlphas = [.05, 0.3, 0.4, 0.5, .6, .7, 1]
-    this.minGroupSize = 5
-    this.shadowLayer = []
-    this.jointsToMake = []
-    this.sizes = [15, 25, 40, 50, 60]
+    this.shadowLayer = [] // a list of pixi containers with different alphas 
+    this.jointsToMake = [] // a list of joints to create next iteration
+    //this.sizes = [15, 25, 40, 50, 60]
     this.sizesToUse = [15, 25, 40, 50, 60]
-    this.colors = textures.colors
-    //this.colorsToUse = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]//max 12+2
-    this.first = true
+    //this.colors = textures.colors
+    this.colorsToUse = [7, 37, 90,  150, 180, 210, 250, 270, 300, 330]; // this should match minGroupSize
+    this.minGroupSize = 7 // minimum circle group size before they pop
+    // generate all the containers for each alpha layer
     for(i=0;i<this.layerAlphas.length;i++){
         var alphaFilter = new PIXI.filters.AlphaFilter();
         alphaFilter.alpha = this.layerAlphas[i];
@@ -46,11 +44,14 @@ function CircleHandler(world, pixiApp, board) {
         this.shadowLayer[i].filters = [alphaFilter];
         pixiApp.stage.addChild(this.shadowLayer[i]);
     }
-    
+    // add the container for the circle layer    
     this.circlesLayer = new PIXI.Container();
     pixiApp.stage.addChild(this.circlesLayer);
+    // add the container for the circle highlight    
+    this.highlightsLayer = new PIXI.Container();
+    pixiApp.stage.addChild(this.highlightsLayer);
 }
-// Had to remake -- box2d was taking seconds to remove the joints for some reason
+// Remake the physics body
 CircleHandler.prototype.remakeCircle = function(circle) {
     var _ = circle.physicsBody.getPosition()
     oldVelocity = circle.physicsBody.getLinearVelocity();
@@ -68,7 +69,7 @@ CircleHandler.prototype.remakeCircle = function(circle) {
         restitution: 0,
         filterGroupIndex: 0,
         filterCategoryBits: this.board.collisions.CIRCLES_CATEGORY,
-        filterMaskBits: 0xFFFF ^ this.board.collisions.CIRCLES_CATEGORY //^ this.board.collisions.BOARD_CATEGORY
+        filterMaskBits: 0xFFFF ^ this.board.collisions.CIRCLES_CATEGORY
     });
     body.circle = circle
     circle.physicsBody = body
@@ -77,12 +78,12 @@ CircleHandler.prototype.remakeCircle = function(circle) {
 }
 
 CircleHandler.prototype.setGroupSize = function(circle){
-    var bfs = function(fn, obj){
+    var bfs = function(fn){
         var q = [circle]
         var visited = [circle]
         while(q.length>0){
             var node = q.pop()
-            fn(node, obj)
+            fn(node)
             for(var i=0;i<node.edges.length;i++){
                 var nNode = node.edges[i]
                 if(! visited.includes(nNode)){
@@ -92,28 +93,33 @@ CircleHandler.prototype.setGroupSize = function(circle){
             }
         }       
     }
+    // Count how many circles are in the group
     var newGroupSize = 0
     bfs(function(){newGroupSize++})
-    
-    bfs(function(node, obj){
+    // Update all the circles in the group
+    bfs(function(node){
         node.groupSize = newGroupSize
-        var updatedTexture = textures.getShadow(node.color,node.size,Math.min(newGroupSize-1, 3));
-        if (node.pixiShadow.texture != updatedTexture){
-            node.pixiShadow.texture = textures.getShadow(node.color,node.size,Math.min(newGroupSize-1, 3));
-            node.pixiShadow.setParent(obj.shadowLayer[Math.min(newGroupSize-1, obj.layerAlphas.length-1)]);
+        var updatedTextureParent = this.shadowLayer[Math.min(newGroupSize-1, this.layerAlphas.length-1)];
+        if (node.pixiShadow.parent != updatedTextureParent){
+            node.pixiShadow.texture = textures.getShadow(node.color,node.size,Math.min(newGroupSize-1, 3))
+            node.pixiShadow.setParent(updatedTextureParent);
+            console.log([Math.min(newGroupSize-1, this.layerAlphas.length-1)])
         }
-        if(newGroupSize >= obj.minGroupSize){
+        if(newGroupSize >= this.minGroupSize){
             node.destroying = true
             node.destroyAfter = Date.now() + 500
         }
-    }, this)
+    }.bind(this))
+
+    bfs(function(node){console.log(node.groupSize)})
 }
 CircleHandler.prototype.hitSideWall = function(circle){
+    this.disconnectCircle(circle);
     circle.outOfBounds = true;
-    circle.remake = true;
-    
+    circle.remakePhysics = true;
 }
 CircleHandler.prototype.circleWentOut = function(circle){
+    this.disconnectCircle(circle);
     circle.hitBottom = true;
     circle.destroying = true;
     circle.destroyAfter = 0;
@@ -146,14 +152,18 @@ CircleHandler.prototype.dropNextCircle = function(){
 }
 CircleHandler.prototype.getNextCircle = function(){
     size = this.sizesToUse[Math.floor(Math.random() * this.sizesToUse.length)]        
-    //color = this.colorsToUse[Math.floor(Math.random() * this.colorsToUse.length)]
-    color = Math.floor(Math.random() * 360)
+    if (this.matchMode == NORMAL){
+        color = this.colorsToUse[Math.floor(Math.random() * this.colorsToUse.length)]
+    } else {
+        color = Math.floor(Math.random() * 360)
+    }
+    
     //create circle sprite
     var circle = new PIXI.Sprite(textures.getCircle(color,size));
     circle.anchor.set(0.5);
     circle.x = 0;
     circle.y = 50;
-    this.circlesLayer.addChild(circle);
+    this.circlesLayer.addChildAt(circle, 0);
     //create shadow sprite
     var shadow = new PIXI.Sprite(textures.getShadow(color,size, 0));
     shadow.anchor.set(0.5);
@@ -184,7 +194,6 @@ CircleHandler.prototype.disconnectCircle = function(circle) {
 
 }
 CircleHandler.prototype.destroyCircle = function(circle) {
-    this.disconnectCircle(circle);
     circle.pixiCircle.parent.removeChild(circle.pixiCircle);
     circle.pixiShadow.parent.removeChild(circle.pixiShadow);
     this.world.destroyBody(circle.physicsBody);
@@ -198,8 +207,8 @@ CircleHandler.prototype.updateCircles = function(mousePos){
     }
     for (i=0;i<this.circles.length;i++) {
         circle = this.circles[i]
-        if (circle.remake){
-            circle.remake = false;
+        if (circle.remakePhysics){
+            circle.remakePhysics = false;
             this.remakeCircle(circle);
         }
     }
@@ -234,7 +243,7 @@ CircleHandler.prototype.updateCircles = function(mousePos){
         }
         
     }
-    if(this.lastDroppedTime+200 < Date.now()){
+    if(true || this.lastDroppedTime+50 < Date.now()){
         if(this.nextCircle === null) this.getNextCircle();
         x = mousePos.x
         if(x < this.board.leftMargin + size + 2){
@@ -253,7 +262,7 @@ CircleHandler.prototype.collide = function(bodyA, bodyB){
     circleB = bodyB.circle
     if (circleA.outOfBounds || circleB.outOfBounds) return;
 
-    if(this.matchMode == RAINBOW_MODE){
+    if(this.matchMode == RAINBOW){
         a = circleA.color
         b = circleB.color
         c = Math.min(a, b) + 360
@@ -265,7 +274,6 @@ CircleHandler.prototype.collide = function(bodyA, bodyB){
     }else{
         if (circleA.color != circleB.color) return;
     }
-    if (circleA.edges.includes(circleB)) return;
 
     // Get the smallest group
     if(circleA.groupSize <= circleB.groupSize){
@@ -303,6 +311,6 @@ CircleHandler.prototype.collide = function(bodyA, bodyB){
     jointdef.setLength((circleA.size + circleB.size +1 )/this.board.pixelToMeterRatio);
     this.jointsToMake.push(jointdef)
     
-    this.setGroupSize(circleA);
+    this.setGroupSize(circleB);
 
 }

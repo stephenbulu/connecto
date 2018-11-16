@@ -18,19 +18,6 @@ function Sound(){
         this.lastTime[sound] = Date.now()
     }
 }
-
-
-// old colors
-// circleColors = {
-//     "red": ["0x741D11", "0xC3311D"],
-//     "blue": ["0x264779", "0x3E74C6"],
-//     "purple": ["0x4D2A86", "0x713DC3"],
-//     "green": ["0x17814D", "0x1FB46C"],
-//     "yellow": ["0x816C04", "0xC3A406"],
-//     'orange': ["0x83400B", "0xc66011"],
-//     'gray': ["0x474747", "0x999999"]
-// }
-
 function getColorList(){
     var rgbToHex = function (rgb) { 
         var hex = Number(rgb).toString(16);
@@ -68,32 +55,6 @@ function getColorList(){
         return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
     }
 
-    // var list = [
-    //     ['red', 7, 75], 
-    //     ['yellow', 55, 75], 
-    //     ['green', 135, 75], 
-    //     ['orange', 26, 80], 
-    //     ['blue', 210, 85], 
-    //     ['teal', 170, 70], 
-    //     ['purple', 263, 50], 
-    //     ['indigo', 250, 70], 
-    //     ['magenta', 330, 75]
-    // ]
-
-    // var hueOffset = 7
-    // var lightness1 = .50
-    // var lightness2 = .26
-    // var circleColors = {}
-    // for (i=0;i<list.length;i++) {
-    //     name = list[i][0]
-    //     hue = list[i][1]+hueOffset
-    //     saturation = list[i][2]/100.0
-    //     first = fullColorHex(hslToRgb(hue/360, saturation, lightness1))
-    //     second = fullColorHex(hslToRgb(hue/360, saturation, lightness2))
-    //     circleColors[name] = [first, second]
-    // }
-    // circleColors['gray'] = [fullColorHex(hslToRgb(0, 0, .27)), fullColorHex(hslToRgb(0, 0, .20))]
-    // circleColors['black'] = [fullColorHex(hslToRgb(0, 0, .08)), fullColorHex(hslToRgb(0, 0, .08))]
     var circleColors = []
 
     for(i=0;i<360;i++){
@@ -115,16 +76,23 @@ function getColorList(){
 }
 
 function Textures(){
-    //this.colorsList = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'indigo', 'purple', 'magenta', 'gray', 'black']
-    
     var circleColors = getColorList();
     this.colors = circleColors.length
     var circleSizes = [15, 25, 40, 50, 60]
     this.circleTextures = []
     this.shadowTextures = []
 
+    var graphics = new PIXI.Graphics();
+    graphics.lineStyle(0);
+    graphics.beginFill('0xFF0000', 1);
+    graphics.drawCircle(0, 0, 10);
+    graphics.drawCircle(0, 10, 15);
+    graphics.drawCircle(0, 15, 20);
+    graphics.endFill();
+    this.cursor = graphics.generateTexture() 
+
     //create textures for each color
-    this.addTexture = function(index, color, size, height){
+    this.addCircleTexture = function(index, color, size, height){
         var graphics = new PIXI.Graphics();
         graphics.lineStyle(0);
         graphics.beginFill(color, 1);
@@ -148,9 +116,9 @@ function Textures(){
         circleColor = circleColors[x]
         for(var i=0;i<circleSizes.length;i++){
             size = circleSizes[i];
-            this.addTexture(x, circleColor[0], size, -1)
+            this.addCircleTexture(x, circleColor[0], size, -1)
             for(var j=0;j<4;j++){
-                this.addTexture(x, circleColor[1], size, j)
+                this.addCircleTexture(x, circleColor[1], size, j)
             };
         };       
     }
