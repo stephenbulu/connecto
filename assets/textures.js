@@ -81,22 +81,13 @@ function Textures(){
     var circleSizes = [15, 25, 40, 50, 60]
     this.circleTextures = []
     this.shadowTextures = []
-
-    var graphics = new PIXI.Graphics();
-    graphics.lineStyle(0);
-    graphics.beginFill('0xFF0000', 1);
-    graphics.drawCircle(0, 0, 10);
-    graphics.drawCircle(0, 10, 15);
-    graphics.drawCircle(0, 15, 20);
-    graphics.endFill();
-    this.cursor = graphics.generateTexture() 
-
+    this.highlightTextures = {}
     //create textures for each color
     this.addCircleTexture = function(index, color, size, height){
         var graphics = new PIXI.Graphics();
         graphics.lineStyle(0);
         graphics.beginFill(color, 1);
-        _size = size
+        var _size = size
         if(height >= 0){
             _size += 5+2*height
         }
@@ -122,6 +113,25 @@ function Textures(){
             };
         };       
     }
+
+    for(var i=0;i<circleSizes.length;i++){
+        size = circleSizes[i];
+        var graphics = new PIXI.Graphics();
+        graphics.lineStyle(7, '0xFFFFFF', .1, 0);
+        graphics.beginFill('0xFFFFFF', 0);
+        graphics.drawCircle(0, 0, size-1);
+        graphics.endFill();
+        graphics.lineStyle(2, '0xFFFFFF', .2, 0);
+        graphics.beginFill('0xFFFFFF', 0);
+        graphics.drawCircle(0, 0, size-3);
+        graphics.endFill();
+        graphics.lineStyle(2, '0xFFFFFF', .1, 0);
+        graphics.beginFill('0xFFFFFF', 0);
+        graphics.drawCircle(0, 0, size-5);
+        graphics.endFill();
+        this.highlightTextures[size] = graphics.generateTexture()
+    };  
+
     this.getCircle = function(color, size){
         try{
             if(this.circleTextures[color][size] === undefined){
@@ -133,6 +143,9 @@ function Textures(){
         }
         
         return this.circleTextures[color][size]
+    }
+    this.getHighlight = function(size){
+        return this.highlightTextures[size]
     }
     this.getShadow = function(color, size, height){
         try{

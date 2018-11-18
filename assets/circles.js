@@ -1,11 +1,12 @@
 var RAINBOW = 1
 var NORMAL = 0
-function CircleHandler(world, pixiApp, board) {
+function CircleHandler(world, pixiApp, board, scoreHandler) {
     this.Circle = function(color, size) {
         this.size = size;
         this.color = color;
         this.pixiCircle = null
         this.pixiShadow = null
+        this.pixiHighlight = null
         this.edges = []
         this.groupSize = 1
         this.physicsBody = null
@@ -16,6 +17,7 @@ function CircleHandler(world, pixiApp, board) {
         this.outOfBounds = false
         this.remakePhysics = false
         this.highlight = false // render a highlight on the circle
+        this.destroyed = false
     }
     this.matchRange = 20 // for rainbow mode
     this.matchMode = NORMAL
@@ -25,17 +27,18 @@ function CircleHandler(world, pixiApp, board) {
     this.pixiApp = pixiApp
     this.board = board;
     this.circles = []; // list of circle objects
-
     // Initialize all containers to control z index of shadows and circles
-    this.layerAlphas = [.05, 0.3, 0.45, 0.65, 1]
-    this.layerAlphas = [.05, 0.3, 0.4, 0.5, .6, .7, 1]
+    this.layerAlphas = [.05, 0.3, 0.45, 0.65, .7, 1]
+    //this.layerAlphas = [.05, 0.3, 0.4, 0.5, .6, .7, 1]// this should match minGroupSize
     this.shadowLayer = [] // a list of pixi containers with different alphas 
     this.jointsToMake = [] // a list of joints to create next iteration
+    this.bodiesToDestroy = [] // bodies to delay destroying
     //this.sizes = [15, 25, 40, 50, 60]
     this.sizesToUse = [15, 25, 40, 50, 60]
+    this.sizesToPoints = [.8, .9, 1, 1.1, 1.2]
     //this.colors = textures.colors
-    this.colorsToUse = [7, 37, 90,  150, 180, 210, 250, 270, 300, 330]; // this should match minGroupSize
-    this.minGroupSize = 7 // minimum circle group size before they pop
+    this.colorsToUse = [7, 37, 90,  150, 180, 210, 250, 270, 300, 330];
+    this.minGroupSize = 6 // minimum circle group size before they pop
     // generate all the containers for each alpha layer
     for(i=0;i<this.layerAlphas.length;i++){
         var alphaFilter = new PIXI.filters.AlphaFilter();
@@ -50,6 +53,7 @@ function CircleHandler(world, pixiApp, board) {
     // add the container for the circle highlight    
     this.highlightsLayer = new PIXI.Container();
     pixiApp.stage.addChild(this.highlightsLayer);
+
 }
 // Remake the physics body
 CircleHandler.prototype.remakeCircle = function(circle) {
@@ -103,15 +107,12 @@ CircleHandler.prototype.setGroupSize = function(circle){
         if (node.pixiShadow.parent != updatedTextureParent){
             node.pixiShadow.texture = textures.getShadow(node.color,node.size,Math.min(newGroupSize-1, 3))
             node.pixiShadow.setParent(updatedTextureParent);
-            console.log([Math.min(newGroupSize-1, this.layerAlphas.length-1)])
         }
         if(newGroupSize >= this.minGroupSize){
             node.destroying = true
             node.destroyAfter = Date.now() + 500
         }
     }.bind(this))
-
-    bfs(function(node){console.log(node.groupSize)})
 }
 CircleHandler.prototype.hitSideWall = function(circle){
     this.disconnectCircle(circle);
@@ -128,6 +129,7 @@ CircleHandler.prototype.circleWentOut = function(circle){
 CircleHandler.prototype.dropNextCircle = function(){
     if(this.lastDroppedTime + 210 > Date.now()) return;
     if(this.nextCircle === null) return;
+    this.removeHighlights();
     var x = this.nextCircle.pixiCircle.x;
     var y = this.nextCircle.pixiCircle.y;
     body = world.createDynamicBody(this.board.pixelsToMeters(x, y));
@@ -149,6 +151,35 @@ CircleHandler.prototype.dropNextCircle = function(){
     this.nextCircle = null
     this.lastDroppedTime = Date.now()
     sounds.play('frog');
+}
+CircleHandler.prototype.highlightColor = function(color){
+    for(var i=0;i<this.circles.length;i++){
+        circle = this.circles[i]
+        if (circle.color == color){
+            circle.highlight = true
+            highlight = new PIXI.Sprite(textures.getHighlight(circle.size));
+            highlight.anchor.set(0.5);
+            _ = circle.physicsBody.getPosition()
+            position = this.board.metersToPixels(_.x, _.y)
+            highlight.x = position.x
+            highlight.y = position.y
+            if (! this.board.spaceDown){
+                highlight.renderable = false;
+            }
+            this.highlightsLayer.addChild(highlight)
+            circle.pixiHighlight = highlight
+        }
+    }
+}
+CircleHandler.prototype.removeHighlights = function(){
+    for(var i=0;i<this.circles.length;i++){
+        circle = this.circles[i]
+        if(circle.highlight === true){
+            this.highlightsLayer.removeChild(circle.pixiHighlight)
+            circle.highlight = false
+            circle.pixiHighlight = null
+        }
+    }
 }
 CircleHandler.prototype.getNextCircle = function(){
     size = this.sizesToUse[Math.floor(Math.random() * this.sizesToUse.length)]        
@@ -173,6 +204,7 @@ CircleHandler.prototype.getNextCircle = function(){
     this.nextCircle = new this.Circle(color, size);
     this.nextCircle.pixiCircle = circle
     this.nextCircle.pixiShadow = shadow
+    this.highlightColor(color)
 }
 CircleHandler.prototype.setMinGroupSize = function(size){
     lastGroupSize = this.minGroupSize
@@ -194,9 +226,22 @@ CircleHandler.prototype.disconnectCircle = function(circle) {
 
 }
 CircleHandler.prototype.destroyCircle = function(circle) {
+    if (! circle.outOfBounds && ! circle.hitBottom){
+        scoreHandler.generatePoints(circle, this);
+        this.bodiesToDestroy.push([Date.now(), circle.physicsBody])
+
+    } else {
+        this.world.destroyBody(circle.physicsBody);
+    }
+    circle.destroyed = true;
     circle.pixiCircle.parent.removeChild(circle.pixiCircle);
+    circle.pixiCircle = null
     circle.pixiShadow.parent.removeChild(circle.pixiShadow);
-    this.world.destroyBody(circle.physicsBody);
+    circle.pixiShadow = null
+    if(circle.highlight){
+        circle.pixiHighlight.parent.removeChild(circle.pixiHighlight)
+        circle.highlight = false
+    }
 }
 CircleHandler.prototype.updateCircles = function(mousePos){
     while(this.jointsToMake.length > 0){
@@ -205,11 +250,24 @@ CircleHandler.prototype.updateCircles = function(mousePos){
             joint = world.createJoint(jointdef)
         }
     }
+    
     for (i=0;i<this.circles.length;i++) {
         circle = this.circles[i]
         if (circle.remakePhysics){
             circle.remakePhysics = false;
             this.remakeCircle(circle);
+        }
+    }
+    i=0
+    while(i < this.bodiesToDestroy.length){
+        _ = this.bodiesToDestroy[i]
+        time = _[0]
+        body = _[1]
+        if (time + 300 <= Date.now()) {
+            this.world.destroyBody(body)
+            this.bodiesToDestroy.splice(i, 1);
+        } else {
+            i++
         }
     }
     i=0
@@ -224,22 +282,32 @@ CircleHandler.prototype.updateCircles = function(mousePos){
                 sounds.play('pop');
             }
             this.circles.splice(i, 1);
-            i--
+        } else {
+            i++
         }
-        i++
     }
     for (i=0;i<this.circles.length;i++) {
         circle = this.circles[i];
         pxCircle = circle.pixiCircle
         pxShadow = circle.pixiShadow
         _ = circle.physicsBody.getPosition()
-        newPosition = board.metersToPixels(_.x, _.y)
+        newPosition = this.board.metersToPixels(_.x, _.y)
         velocity = circle.physicsBody.getLinearVelocity()
         if(false && Math.abs((pxCircle.x - newPosition.x) < 1 && velocity.x < .2) && (Math.abs(pxCircle.y - newPosition.y) < 1 && velocity.y < .2)){
             //Might put something here
         }else{
             pxCircle.x = newPosition.x, pxCircle.y = newPosition.y;
             pxShadow.x = newPosition.x, pxShadow.y = newPosition.y;
+            if(circle.highlight === true){
+                if (this.board.spaceDown){
+                    circle.pixiHighlight.renderable = true
+                } else {
+                    circle.pixiHighlight.renderable = false
+                }
+                
+                circle.pixiHighlight.x = newPosition.x
+                circle.pixiHighlight.y = newPosition.y
+            }
         }
         
     }
@@ -261,6 +329,7 @@ CircleHandler.prototype.collide = function(bodyA, bodyB){
     circleA = bodyA.circle
     circleB = bodyB.circle
     if (circleA.outOfBounds || circleB.outOfBounds) return;
+    if (circleA.destroyed || circleB.destroyed) return;
 
     if(this.matchMode == RAINBOW){
         a = circleA.color
@@ -300,7 +369,6 @@ CircleHandler.prototype.collide = function(bodyA, bodyB){
     sounds.play('waterdrop');
     circleA.edges.push(circleB)
     circleB.edges.push(circleA)                
-    var newGroupSize = circleA.groupSize + circleB.groupSize
     //minimum group size decides if we will remove this group from the board
     bodyAPos = bodyA.getPosition()
     bodyBPos = bodyB.getPosition()

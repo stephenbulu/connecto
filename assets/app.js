@@ -1,12 +1,37 @@
      
 function Board(){
-    this.width = 1300
+    this.spaceDown = false // is space bar pressed
+    this.width = 1400
     this.height = 1200
     this.wallThickness = 25
-    this.leftMargin = 200
-    this.rightMargin = 200
+    this.leftMargin = 250
+    this.rightMargin = 250
     this.pixelToMeterRatio = 50.0
     this.topMargin = 500
+    this.score = 0;
+    this.scoreText = null;
+    this.drawBoard = function(pixiApp, uiLayer){
+        amnt = this.score.toString()
+        //while (amnt.length < 8) {amnt = "0" + amnt;}
+        var text = new PIXI.Text(amnt, {
+            fontFamily: 'Arial',
+            fontSize: 40,
+            fill: '#DDDDDD',
+            align: 'center',
+            fontWeight: 'bold',
+            stroke: '#000000',
+            strokeThickness: 5,
+        });
+        text.anchor.set(1.0, 0.0)
+        text.x = 180
+        text.y = 20
+        uiLayer.addChild(text)
+        this.scoreText = text;
+    }
+    this.updateScore = function(score){
+        this.score += score
+        this.scoreText.setText(this.score.toString())
+    }
     this.pixelsToMeters = function(x, y){
         return planck.Vec2((x - this.leftMargin) / this.pixelToMeterRatio, (this.height-y) / this.pixelToMeterRatio)
     }
@@ -72,16 +97,18 @@ function Board(){
         
     }
 }
-board = new Board();
 
+
+
+// Initialize board object
+var board = new Board();
 
 //Initialize Pixi renderer
 var pixiApp = new PIXI.Application(board.width, board.height, { antialias: true });
 document.body.appendChild(pixiApp.view);
 console.log(pixiApp.renderer.plugins.interaction)
 
-dropZoneLayer = new PIXI.Container();
-pixiApp.stage.addChild(dropZoneLayer);
+
 
 
 //Initialize planck world
@@ -95,15 +122,21 @@ var sounds = new Sound()
 var textures = new Textures()
 
 
-pixiApp.renderer.plugins.interaction.cursorStyles.default = "url(https://s3.amazonaws.com/myamazoncdnbucket/cursor2.png) 16 0, auto";
-
+//Initialize scorehandler 
+var scoreHandler = new ScoreHandler(world, pixiApp, board);
 
 //Initialize circlehandler 
-var circleHandler = new CircleHandler(world, pixiApp, board);
+var circleHandler = new CircleHandler(world, pixiApp, board, scoreHandler);
 
 // Add ui container
-this.uiLayer = new PIXI.Container();
+var uiLayer = new PIXI.Container();
 pixiApp.stage.addChild(uiLayer);
+
+var pointsLayer = new PIXI.Container();
+pixiApp.stage.addChild(pointsLayer);
+scoreHandler.pointsLayer = pointsLayer
+
+board.drawBoard(pixiApp, uiLayer)
 
 // Draw the board 
 var graphics = new PIXI.Graphics();
@@ -156,32 +189,64 @@ world.on('pre-solve', function(contact) {
 
 
 var mousePos = planck.Vec2(board.width/2, 0);
-
+var mouseInBounds = false
 var mDown = false
 var lastAutoDrop = 0
 window.onmousedown = function(event){
-    mDown = true
-    circleHandler.dropNextCircle();
-    lastAutoDrop = Date.now()
+    if (event.button == 0){
+        mDown = true
+        circleHandler.dropNextCircle();
+        lastAutoDrop = Date.now()
+    }
 };
 window.onmouseup = function(event){
-    mDown = false
-    lastAutoDrop = 0
+    if (event.button == 0){
+        mDown = false
+        lastAutoDrop = 0
+    }
 };
+window.onkeyup = function(event){
+    if (event.which === 32) {
+        board.spaceDown = false
+    }
+};
+window.onkeydown = function(event){
+    if (event.which === 32) {
+        board.spaceDown = true
+    }
+};
+
+
+
+pixiApp.renderer.plugins.interaction.cursorStyles.default = "inherit";
 
 // Set stage to interactive so we can get mouse events
 pixiApp.stage.interactive = true
 pixiApp.stage.on('mousemove', function(event){
     mousePos = event.data.getLocalPosition(pixiApp.stage)
+    if (mousePos.x >= board.leftMargin && mousePos.x <= board.width-board.rightMargin){
+        if (!mouseInBounds){
+            pixiApp.renderer.plugins.interaction.cursorStyles.default = "url(https://s3.amazonaws.com/myamazoncdnbucket/cursor2.png) 16 0, auto";
+            pixiApp.view.style.cursor = "url(https://s3.amazonaws.com/myamazoncdnbucket/cursor2.png) 16 0, auto";
+            mouseInBounds = true
+        }
+    } else {
+        if (mouseInBounds){
+            pixiApp.renderer.plugins.interaction.cursorStyles.default = "inherit";
+            pixiApp.view.style.cursor = "inherit";
+            mouseInBounds = false
+        }
+    }
 });
 count = 0
 function mainLoop(){
-    if (mDown && lastAutoDrop + 350 < Date.now()){
+    if (mouseInBounds && mDown && lastAutoDrop + 350 < Date.now()){
         circleHandler.dropNextCircle();
         lastAutoDrop = Date.now()
     }
     world.step(1 / (60 * (Math.max(pixiApp.ticker.FPS, 30) / 60)))
     count++
     circleHandler.updateCircles(mousePos)
+    scoreHandler.updatePoints();
 };
 pixiApp.ticker.add(mainLoop);
