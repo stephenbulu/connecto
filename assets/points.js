@@ -19,8 +19,8 @@ ScoreHandler.prototype.generatePoints = function(circle, circleHandler) {
 
     var amount = 100;
     
-    if (circle.groupSize > this.minGroupSize){
-        diff = circle.groupSize - this.minGroupSize
+    if (circle.groupSize > circleHandler.minGroupSize){
+        diff = circle.groupSize - circleHandler.minGroupSize
         amount = amount*1.5**diff
     }
     index =  circleHandler.sizesToUse.indexOf(circle.size)

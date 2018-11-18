@@ -1,7 +1,7 @@
      
 function Board(){
     this.spaceDown = false // is space bar pressed
-    this.width = 1400
+    this.width = 1500
     this.height = 1200
     this.wallThickness = 25
     this.leftMargin = 250
@@ -18,7 +18,6 @@ function Board(){
             fontSize: 40,
             fill: '#DDDDDD',
             align: 'center',
-            fontWeight: 'bold',
             stroke: '#000000',
             strokeThickness: 5,
         });

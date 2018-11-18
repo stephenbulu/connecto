@@ -263,7 +263,7 @@ CircleHandler.prototype.updateCircles = function(mousePos){
         _ = this.bodiesToDestroy[i]
         time = _[0]
         body = _[1]
-        if (time + 300 <= Date.now()) {
+        if (time + 150 <= Date.now()) {
             this.world.destroyBody(body)
             this.bodiesToDestroy.splice(i, 1);
         } else {
