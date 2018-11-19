@@ -56,7 +56,7 @@ function getColorList(){
             // r = m/t*r
             // g = m/t*g
             // b = m/t*b
-            g=g*0.8
+            // g=g*0.8
         }
         return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
     }

@@ -7,7 +7,7 @@ function Board(){
     this.leftMargin = 250
     this.rightMargin = 250
     this.pixelToMeterRatio = 50.0
-    this.topMargin = 500
+    this.topMargin = 600
     this.score = 0;
     this.scoreText = null;
     this.drawBoard = function(pixiApp, uiLayer){
