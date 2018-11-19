@@ -51,6 +51,12 @@ function getColorList(){
             r = hue2rgb(p, q, h + 1/3);
             g = hue2rgb(p, q, h);
             b = hue2rgb(p, q, h - 1/3);
+            m = Math.max(r, g, b)
+            t = r+g+b
+            // r = m/t*r
+            // g = m/t*g
+            // b = m/t*b
+            g=g*0.8
         }
         return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
     }
@@ -58,16 +64,18 @@ function getColorList(){
     var circleColors = []
 
     for(i=0;i<360;i++){
-        var lightness1 = .30//.50
-        var lightness2 = .20//.26
-        var saturation = 1//.70
+        var lightness1 = .40//.50
+        var lightness2 = .50//.26
+        var saturation1 = 1//.70
+        var saturation2 = 1//.70
         if (false && i%2 != 0){
             var saturation = .5
             var lightness1 = .60
             var lightness2 = .36
         }
         var hue = (360/360 * i) / 360
-        circleColors.push([fullColorHex(hslToRgb(hue, saturation, lightness1)), fullColorHex(hslToRgb(hue, saturation, lightness2))])
+        circleColors.push([fullColorHex(hslToRgb(hue, saturation1, lightness1)), fullColorHex(hslToRgb(hue, saturation2, lightness2))])
+        console.log(fullColorHex(hslToRgb(hue, saturation1, lightness1)))
     }
     circleColors.push( [fullColorHex(hslToRgb(0, 0, .27)), fullColorHex(hslToRgb(0, 0, .20))] )
     circleColors.push( [fullColorHex(hslToRgb(0, 0, .08)), fullColorHex(hslToRgb(0, 0, .08))] )
@@ -117,17 +125,9 @@ function Textures(){
     for(var i=0;i<circleSizes.length;i++){
         size = circleSizes[i];
         var graphics = new PIXI.Graphics();
-        graphics.lineStyle(7, '0xFFFFFF', .1, 0);
+        graphics.lineStyle(4, '0x000000', 1, 1);
         graphics.beginFill('0xFFFFFF', 0);
         graphics.drawCircle(0, 0, size-1);
-        graphics.endFill();
-        graphics.lineStyle(2, '0xFFFFFF', .2, 0);
-        graphics.beginFill('0xFFFFFF', 0);
-        graphics.drawCircle(0, 0, size-3);
-        graphics.endFill();
-        graphics.lineStyle(2, '0xFFFFFF', .1, 0);
-        graphics.beginFill('0xFFFFFF', 0);
-        graphics.drawCircle(0, 0, size-5);
         graphics.endFill();
         this.highlightTextures[size] = graphics.generateTexture()
     };  

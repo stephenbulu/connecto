@@ -37,7 +37,7 @@ function CircleHandler(world, pixiApp, board, scoreHandler) {
     this.sizesToUse = [15, 25, 40, 50, 60]
     this.sizesToPoints = [.8, .9, 1, 1.1, 1.2]
     //this.colors = textures.colors
-    this.colorsToUse = [7, 37, 90,  150, 180, 210, 250, 270, 300, 330];
+    this.colorsToUse = [0, 30, 90,  150, 180, 210, 240, 270, 300, 330];
     this.minGroupSize = 6 // minimum circle group size before they pop
     // generate all the containers for each alpha layer
     for(i=0;i<this.layerAlphas.length;i++){

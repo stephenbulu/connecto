@@ -33,7 +33,7 @@ ScoreHandler.prototype.generatePoints = function(circle, circleHandler) {
         fill: 'white',
         align: 'center',
         stroke: '#000000',
-        strokeThickness: 5,
+        strokeThickness: 3,
     });
     text.x = pos.x-circle.size/2
     text.y = pos.y-12

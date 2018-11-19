@@ -17,9 +17,9 @@ function Board(){
             fontFamily: 'Arial',
             fontSize: 40,
             fill: '#DDDDDD',
-            align: 'center',
+            align: 'center',    
             stroke: '#000000',
-            strokeThickness: 5,
+            strokeThickness: 3,
         });
         text.anchor.set(1.0, 0.0)
         text.x = 180
@@ -218,7 +218,7 @@ window.onkeydown = function(event){
 
 
 pixiApp.renderer.plugins.interaction.cursorStyles.default = "inherit";
-
+pixiApp.renderer.backgroundColor = 0xCCCCCC;
 // Set stage to interactive so we can get mouse events
 pixiApp.stage.interactive = true
 pixiApp.stage.on('mousemove', function(event){
